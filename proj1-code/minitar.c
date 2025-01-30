@@ -1,5 +1,5 @@
 #include "minitar.h"
-
+// hi rob
 #include <fcntl.h>
 #include <grp.h>
 #include <math.h>
@@ -14,7 +14,6 @@
 #define NUM_TRAILING_BLOCKS 2
 #define MAX_MSG_LEN 128
 #define BLOCK_SIZE 512
-
 // Constants for tar compatibility information
 #define MAGIC "ustar"
 

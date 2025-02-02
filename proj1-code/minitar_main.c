@@ -64,15 +64,32 @@ int main(int argc, char **argv) {
             fprintf(stderr, "Error: Failed to list archive contents.\n");
         }
     } else if (strcmp(operation, "-u") == 0) {
-        result = append_files_to_archive(archive_name, &files); // Update is similar to append
+        // Check if all files are present in the archive
+        const node_t *current = files.head;
+        while (current != NULL) {
+            int result = is_file_in_archive(archive_name, current->name);
+            if (result == -1) {
+                fprintf(stderr, "Error: Failed to check if file '%s' exists in archive.\n", current->name);
+                file_list_clear(&files);
+                return 1;
+            } else if (result == 0) {
+                fprintf(stderr, "Error: File '%s' is not present in archive.\n", current->name);
+                file_list_clear(&files);
+                return 1;
+            }
+            current = current->next;
+        }
+
+        // If all files are present, append the new versions
+        result = append_files_to_archive(archive_name, &files);
         if (result != 0) {
             fprintf(stderr, "Error: Failed to update archive.\n");
         }
     } else if (strcmp(operation, "-x") == 0) {
-        result = extract_files_from_archive(archive_name);
-        if (result != 0) {
-            fprintf(stderr, "Error: Failed to extract files from archive.\n");
-        }
+            result = extract_files_from_archive(archive_name);
+            if (result != 0) {
+                fprintf(stderr, "Error: Failed to extract files from archive.\n");
+            }
     }
 
 

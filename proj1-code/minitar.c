@@ -1,5 +1,4 @@
 #include "minitar.h"
-// hi rob
 #include <fcntl.h>
 #include <grp.h>
 #include <math.h>
@@ -123,9 +122,68 @@ int remove_trailing_bytes(const char *file_name, size_t nbytes) {
 }
 
 int create_archive(const char *archive_name, const file_list_t *files) {
-    // TODO: Not yet implemented
+    FILE *archive_fpointer = fopen(archive_name, "wb"); //overwrite if exists
+    if (!archive_fpointer) {
+        perror("Error making archive.");
+        return -1;
+    }
+    // check file_list_t to see why node_t was chosen.
+    const node_t *current = files->head; // Iterating through each file in linked list
+    while (current != NULL) {
+        FILE *current_member_fp = fopen(current->name, "rb");
+        if (!current_member_fp) {
+            perror("Error opening member file");
+            fclose(archive_fpointer);
+            return -1;
+        }
+
+        tar_header header;
+        if (fill_tar_header(&header, current->name) != 0) {
+            perror("Error creating header.");
+            fclose(current_member_fp);
+            fclose(archive_fpointer);
+            return -1;
+        }
+
+        if (fwrite(&header, 512, 1, archive_fpointer) != 1) {
+            perror("Error writing the header");
+            fclose(current_member_fp);
+            fclose(archive_fpointer);
+            return -1;
+        }
+
+        char buffer[512] = {0};
+        size_t bytes_read;
+        while ((bytes_read = fread(buffer, 1, 512, current_member_fp)) > 0) {
+            if (bytes_read < 512) {
+                memset(buffer + bytes_read, 0, 512 - bytes_read); 
+            }
+            if (fwrite(buffer, 512, 1, archive_fpointer) != 1) {
+                perror("Error writing file contents");
+                fclose(current_member_fp);
+                fclose(archive_fpointer);
+                return -1;
+            }
+            memset(buffer, 0, 512); // Clear the buffer
+        }
+        fclose(current_member_fp);
+        current = current->next;
+    }
+
+    // Writing the TAR footer (2 blocks of 512 bytes of zeros)
+    char zeros[512] = {0};
+    for (int i = 0; i < 2; i++) {
+        if (fwrite(zeros, 512, 1, archive_fpointer) != 1) {
+            perror("Error writing footer");
+            fclose(archive_fpointer);
+            return -1;
+        }
+    }
+
+    fclose(archive_fpointer);
     return 0;
 }
+
 
 int append_files_to_archive(const char *archive_name, const file_list_t *files) {
     // TODO: Not yet implemented

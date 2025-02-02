@@ -4,6 +4,7 @@
 #include "file_list.h"
 #include "minitar.h"
 
+// argc is the argument count and argv is the string of arguments
 int main(int argc, char **argv) {
     if (argc < 4) {
         printf("Usage: %s -c|a|t|u|x -f ARCHIVE [FILE...]\n", argv[0]);

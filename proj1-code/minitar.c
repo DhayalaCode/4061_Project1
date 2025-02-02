@@ -186,7 +186,12 @@ int create_archive(const char *archive_name, const file_list_t *files) {
 
 
 int append_files_to_archive(const char *archive_name, const file_list_t *files) {
-    // TODO: Not yet implemented
+    FILE  *archive_fpointer = fopen(archive_name, "a");
+    if(!archive_fpointer) {
+        perror("Error with archive.");
+        return -1;
+    }
+    //let Dhayalan continue with this
     return 0;
 }
 

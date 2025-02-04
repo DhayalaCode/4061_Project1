@@ -9,6 +9,7 @@
 #include <sys/sysmacros.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 #define NUM_TRAILING_BLOCKS 2
 #define MAX_MSG_LEN 128
@@ -121,66 +122,84 @@ int remove_trailing_bytes(const char *file_name, size_t nbytes) {
     return 0;
 }
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "minitar.h"
+
 int create_archive(const char *archive_name, const file_list_t *files) {
-    FILE *archive_fpointer = fopen(archive_name, "wb"); //overwrite if exists
-    if (!archive_fpointer) {
-        perror("Error making archive.");
+    // Open the archive file for writing (overwrite if it exists)
+    FILE *archive_fp = fopen(archive_name, "wb");
+    if (!archive_fp) {
+        perror("Error: Failed to open archive file for writing");
         return -1;
     }
-    // check file_list_t to see why node_t was chosen.
-    const node_t *current = files->head; // Iterating through each file in linked list
+
+    // Iterate through each file in the linked list
+    const node_t *current = files->head;
     while (current != NULL) {
-        FILE *current_member_fp = fopen(current->name, "rb");
-        if (!current_member_fp) {
-            perror("Error opening member file");
-            fclose(archive_fpointer);
+        // Open the current file for reading
+        FILE *file_fp = fopen(current->name, "rb");
+        if (!file_fp) {
+            perror("Error: Failed to open member file");
+            fclose(archive_fp);
             return -1;
         }
 
+        // Create and populate the tar header
         tar_header header;
         if (fill_tar_header(&header, current->name) != 0) {
-            perror("Error creating header.");
-            fclose(current_member_fp);
-            fclose(archive_fpointer);
+            perror("Error: Failed to create tar header");
+            fclose(file_fp);
+            fclose(archive_fp);
             return -1;
         }
 
-        if (fwrite(&header, 512, 1, archive_fpointer) != 1) {
-            perror("Error writing the header");
-            fclose(current_member_fp);
-            fclose(archive_fpointer);
+        // Write the header to the archive
+        if (fwrite(&header, sizeof(tar_header), 1, archive_fp) != 1) {
+            perror("Error: Failed to write header to archive");
+            fclose(file_fp);
+            fclose(archive_fp);
             return -1;
         }
 
+        // Write the file contents to the archive in 512-byte blocks
         char buffer[512] = {0};
         size_t bytes_read;
-        while ((bytes_read = fread(buffer, 1, 512, current_member_fp)) > 0) {
-            if (bytes_read < 512) {
-                memset(buffer + bytes_read, 0, 512 - bytes_read); 
+        while ((bytes_read = fread(buffer, 1, sizeof(buffer), file_fp)) > 0) {
+            // Pad the last block with zeros if necessary
+            if (bytes_read < sizeof(buffer)) {
+                memset(buffer + bytes_read, 0, sizeof(buffer) - bytes_read);
             }
-            if (fwrite(buffer, 512, 1, archive_fpointer) != 1) {
-                perror("Error writing file contents");
-                fclose(current_member_fp);
-                fclose(archive_fpointer);
+
+            // Write the block to the archive
+            if (fwrite(buffer, sizeof(buffer), 1, archive_fp) != 1) {
+                perror("Error: Failed to write file contents to archive");
+                fclose(file_fp);
+                fclose(archive_fp);
                 return -1;
             }
-            memset(buffer, 0, 512); // Clear the buffer
         }
-        fclose(current_member_fp);
+
+        // Close the current file
+        fclose(file_fp);
+
+        // Move to the next file in the list
         current = current->next;
     }
 
-    // Writing the TAR footer (2 blocks of 512 bytes of zeros)
+    // Write the TAR footer (two blocks of zeros)
     char zeros[512] = {0};
     for (int i = 0; i < 2; i++) {
-        if (fwrite(zeros, 512, 1, archive_fpointer) != 1) {
-            perror("Error writing footer");
-            fclose(archive_fpointer);
+        if (fwrite(zeros, sizeof(zeros), 1, archive_fp) != 1) {
+            perror("Error: Failed to write footer to archive");
+            fclose(archive_fp);
             return -1;
         }
     }
 
-    fclose(archive_fpointer);
+    // Close the archive file
+    fclose(archive_fp);
     return 0;
 }
 

@@ -39,13 +39,6 @@ int main(int argc, char **argv) {
         }
     }
 
-    //print out file names from main
-    const node_t *current = files.head;
-    while (current != NULL) {
-        printf("%s\n" , current->name);
-        current = current -> next;
-    }
-
     //properly checks calls to archive functions
     int result = 0;
     if (strcmp(operation, "-c") == 0) {

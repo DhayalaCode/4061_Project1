@@ -30,7 +30,6 @@ int main(int argc, char **argv) {
     char *archive_name = argv[3];
     file_list_t files;
     file_list_init(&files);
-
     for (int i = 4; i <  argc; i++) {
         if (file_list_add(&files, argv[i]) != 0){
             fprintf(stderr, "Error: Could not add file'%s' to linked list", argv[i]);

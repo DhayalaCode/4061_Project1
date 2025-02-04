@@ -1,15 +1,16 @@
 #include "minitar.h"
+
 #include <fcntl.h>
 #include <grp.h>
 #include <math.h>
 #include <pwd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <stdlib.h>
 
 #define NUM_TRAILING_BLOCKS 2
 #define MAX_MSG_LEN 128
@@ -136,7 +137,7 @@ int create_archive(const char *archive_name, const file_list_t *files) {
         FILE *file_fp = fopen(current->name, "rb");
         if (!file_fp) {
             perror("Error: Failed to open member file");
-            if(fclose(archive_fp) != 0) { //checking if file actually closed
+            if (fclose(archive_fp) != 0) {    // checking if file actually closed
                 printf("Error closing file.");
                 return -1;
             }
@@ -147,11 +148,11 @@ int create_archive(const char *archive_name, const file_list_t *files) {
         tar_header header;
         if (fill_tar_header(&header, current->name) != 0) {
             perror("Error: Failed to create tar header");
-            if(fclose(file_fp) != 0) {
+            if (fclose(file_fp) != 0) {
                 printf("Error closing file.");
                 return -1;
             }
-            if(fclose(archive_fp) != 0) {
+            if (fclose(archive_fp) != 0) {
                 printf("Error closing file.");
                 return -1;
             }
@@ -161,11 +162,11 @@ int create_archive(const char *archive_name, const file_list_t *files) {
         // Write the header to the archive
         if (fwrite(&header, sizeof(tar_header), 1, archive_fp) != 1) {
             perror("Error: Failed to write header to archive");
-            if(fclose(file_fp) != 0) {
+            if (fclose(file_fp) != 0) {
                 printf("Error closing file.");
                 return -1;
             }
-            if(fclose(archive_fp) != 0) {
+            if (fclose(archive_fp) != 0) {
                 printf("Error closing file.");
                 return -1;
             }
@@ -187,11 +188,11 @@ int create_archive(const char *archive_name, const file_list_t *files) {
             // Writing the block to the archive
             if (fwrite(buffer, sizeof(buffer), 1, archive_fp) != 1) {
                 perror("Error: Failed to write file contents to archive");
-                if(fclose(file_fp) != 0) {
+                if (fclose(file_fp) != 0) {
                     printf("Error closing file.");
                     return -1;
                 }
-            if(fclose(archive_fp) != 0) {
+                if (fclose(archive_fp) != 0) {
                     printf("Error closing file.");
                     return -1;
                 }
@@ -199,46 +200,62 @@ int create_archive(const char *archive_name, const file_list_t *files) {
             }
         }
 
-        if(fclose(file_fp) != 0) {
-                    printf("Error closing file.");
-                    return -1;
+        if (fclose(file_fp) != 0) {
+            printf("Error closing file.");
+            return -1;
         }
         current = current->next;
     }
 
-    //2 tar footers made of zeroes.
+    // 2 tar footers made of zeroes.
     char zeros[512] = {0};
     for (int i = 0; i < 2; i++) {
         if (fwrite(zeros, sizeof(zeros), 1, archive_fp) != 1) {
             perror("Error: Failed to write footer to archive");
-            if(fclose(archive_fp) != 0) {
-                    printf("Error closing file.");
-                    return -1;
+            if (fclose(archive_fp) != 0) {
+                printf("Error closing file.");
+                return -1;
             }
             return -1;
         }
     }
 
-    if(fclose(archive_fp) != 0) {
+    if (fclose(archive_fp) != 0) {
         printf("Error closing file.");
         return -1;
     }
     return 0;
 }
 
-
 int append_files_to_archive(const char *archive_name, const file_list_t *files) {
-    FILE  *archive_fpointer = fopen(archive_name, "a");
-    if(!archive_fpointer) {
+    FILE *archive_fpointer = fopen(archive_name, "a");
+    if (!archive_fpointer) {
         perror("Error with archive.");
         return -1;
     }
-    //let Dhayalan continue with this
+    // let Dhayalan continue with this
     return 0;
 }
 
 int get_archive_file_list(const char *archive_name, file_list_t *files) {
-    // TODO: Not yet implemented
+    FILE *archive_fpointer = fopen(archive_name, "wb");    // overwrite if exists
+    if (!archive_fpointer) {
+        perror("Error making archive.");
+        return -1;
+    }
+
+    tar_header *header = malloc(BLOCK_SIZE);
+    int last = 0;
+    int current = 0;
+    char name[255];
+    char size[12];
+
+    while (/*the last two blocks are not all zeros*/) {
+        fread(header, 1, BLOCK_SIZE, archive_fpointer);
+
+        // name =
+    }
+
     return 0;
 }
 
@@ -248,7 +265,6 @@ int extract_files_from_archive(const char *archive_name) {
 }
 
 int is_file_in_archive(const char *archive_name, const char *file_name) {
-    //check if the file is in the archive. (HELPER FUNCTIOm)
+    // check if the file is in the archive. (HELPER FUNCTIOm)
     return 0;
 }
-

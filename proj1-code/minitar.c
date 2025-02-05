@@ -33,7 +33,7 @@ void compute_checksum(tar_header *header) {
     memset(header->chksum, ' ', 8);
     unsigned sum = 0;
     char *bytes = (char *) header;
-    for (int i = 0; i < sizeof(tar_header); i++) {
+    for (int i = 0; i < BLOCK_SIZE; i++) {
         sum += bytes[i];
     }
     snprintf(header->chksum, 8, "%07o", sum);
@@ -42,6 +42,9 @@ void compute_checksum(tar_header *header) {
 /* Helper Function to check if a block is completely empty (all zeroes)
  */
 int is_empty_block(const char *block) {
+    if (block == NULL) {
+        return 0;    // Or handle the error as appropriate
+    }
     for (int i = 0; i < BLOCK_SIZE; i++) {
         if (block[i] != '\0') {
             return 0;    // Block is not empty
@@ -56,7 +59,7 @@ int is_empty_block(const char *block) {
  * Returns 0 on success or -1 if an error occurs
  */
 int fill_tar_header(tar_header *header, const char *file_name) {
-    memset(header, 0, sizeof(tar_header));
+    memset(header, 0, BLOCK_SIZE);
     char err_msg[MAX_MSG_LEN];
     struct stat stat_buf;
     // stat is a system call to inspect file metadata
@@ -171,7 +174,7 @@ int create_archive(const char *archive_name, const file_list_t *files) {
         }
 
         // Write the header to the archive
-        if (fwrite(&header, sizeof(tar_header), 1, archive_fp) != 1) {
+        if (fwrite(&header, BLOCK_SIZE, 1, archive_fp) != 1) {
             perror("Error: Failed to write header to archive");
             if (fclose(file_fp) != 0) {
                 printf("Error closing file.");
@@ -259,22 +262,39 @@ int get_archive_file_list(const char *archive_name, file_list_t *files) {
     size_t num_read;
     int end_of_archive = 0;
 
-    while (!end_of_archive &&
-           (num_read = fread(&header, 1, sizeof(tar_header), archive)) == sizeof(tar_header)) {
+    while (!end_of_archive && (num_read = fread(&header, 1, BLOCK_SIZE, archive)) == BLOCK_SIZE) {
         if (is_empty_block((char *) &header)) {
-            // Check for two consecutive zero blocks
-            end_of_archive = fread(&header, 1, sizeof(tar_header), archive) == sizeof(tar_header) &&
-                             is_empty_block((char *) &header);
+            // Peek at the next header block
+            long current_pos = ftell(archive);    // Save current position
+            tar_header next_header;
+            if (fread(&next_header, 1, BLOCK_SIZE, archive) != BLOCK_SIZE) {
+                // Couldn't read a full header; assume end of archive
+                break;
+            }
+
+            if (is_empty_block((char *) &next_header)) {
+                // Two consecutive empty blocks found: end of archive.
+                end_of_archive = 1;
+            } else {
+                // Not two consecutive empty blocks:
+                // Rewind back one header block so that next_header is processed in the next
+                // iteration.
+                if (fseek(archive, current_pos, SEEK_SET) != 0) {
+                    perror("Error seeking back in archive");
+                    fclose(archive);
+                    return -1;
+                }
+            }
             continue;
         }
 
         // Truncate name if necessary to fit into the file list node
-        char truncated_name[MAX_NAME_LEN];
-        strncpy(truncated_name, header.name, MAX_NAME_LEN - 1);
-        truncated_name[MAX_NAME_LEN - 1] = '\0';
+        char truncated_name[MAX_NAME_LEN + 1];
+        strncpy(truncated_name, header.name, MAX_NAME_LEN);
+        truncated_name[MAX_NAME_LEN] = '\0';
 
         if (file_list_add(files, truncated_name) != 0) {
-            fprintf(stderr, "Failed to add file to list: %s\n", truncated_name);
+            perror("Failed to add file to the list");
             fclose(archive);
             return -1;
         }
@@ -290,13 +310,16 @@ int get_archive_file_list(const char *archive_name, file_list_t *files) {
         }
     }
 
-    if (ferror(archive)) {
+    if (ferror(archive) != 0) {
         perror("Error reading archive file");
         fclose(archive);
         return -1;
     }
 
-    fclose(archive);
+    if (fclose(archive) != 0) {
+        perror("Error closing file.");
+        return -1;
+    }
     return 0;
 }
 

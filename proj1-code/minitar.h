@@ -82,4 +82,21 @@ int extract_files_from_archive(const char *archive_name);
 // NEED TO CREATE COMMENT
 int is_file_in_archive(const char *archive_name, const char *file_name);
 
+/**
+ * is_empty_block - Determine if a memory block is completely empty.
+ * @block: Pointer to the memory block to be checked. The block is assumed to
+ *         be of size BLOCK_SIZE bytes.
+ *
+ * Description:
+ *   This function iterates over a memory block of size BLOCK_SIZE bytes and
+ *   checks whether every byte in the block is zero ('\0'). This is useful,
+ *   for example, when verifying whether a 512-byte tar header block is empty,
+ *   which indicates the end of the archive.
+ *
+ * Return:
+ *   1 if the block is entirely empty (all bytes are zero),
+ *   0 if at least one byte in the block is non-zero.
+ */
+int is_empty_block(const char *block);
+
 #endif    // _MINITAR_H

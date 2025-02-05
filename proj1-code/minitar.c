@@ -39,6 +39,17 @@ void compute_checksum(tar_header *header) {
     snprintf(header->chksum, 8, "%07o", sum);
 }
 
+/* Helper Function to check if a block is completely empty (all zeroes)
+ */
+int is_empty_block(const char *block) {
+    for (int i = 0; i < BLOCK_SIZE; i++) {
+        if (block[i] != '\0') {
+            return 0;    // Block is not empty
+        }
+    }
+    return 1;    // Block is empty
+}
+
 /*
  * Populates a tar header block pointed to by 'header' with metadata about
  * the file identified by 'file_name'.
@@ -238,24 +249,54 @@ int append_files_to_archive(const char *archive_name, const file_list_t *files) 
 }
 
 int get_archive_file_list(const char *archive_name, file_list_t *files) {
-    FILE *archive_fpointer = fopen(archive_name, "wb");    // overwrite if exists
-    if (!archive_fpointer) {
-        perror("Error making archive.");
+    FILE *archive = fopen(archive_name, "rb");
+    if (!archive) {
+        perror("Unable to open archive file");
         return -1;
     }
 
-    tar_header *header = malloc(BLOCK_SIZE);
-    int last = 0;
-    int current = 0;
-    char name[255];
-    char size[12];
+    tar_header header;
+    size_t num_read;
+    int end_of_archive = 0;
 
-    while (/*the last two blocks are not all zeros*/) {
-        fread(header, 1, BLOCK_SIZE, archive_fpointer);
+    while (!end_of_archive &&
+           (num_read = fread(&header, 1, sizeof(tar_header), archive)) == sizeof(tar_header)) {
+        if (is_empty_block((char *) &header)) {
+            // Check for two consecutive zero blocks
+            end_of_archive = fread(&header, 1, sizeof(tar_header), archive) == sizeof(tar_header) &&
+                             is_empty_block((char *) &header);
+            continue;
+        }
 
-        // name =
+        // Truncate name if necessary to fit into the file list node
+        char truncated_name[MAX_NAME_LEN];
+        strncpy(truncated_name, header.name, MAX_NAME_LEN - 1);
+        truncated_name[MAX_NAME_LEN - 1] = '\0';
+
+        if (file_list_add(files, truncated_name) != 0) {
+            fprintf(stderr, "Failed to add file to list: %s\n", truncated_name);
+            fclose(archive);
+            return -1;
+        }
+
+        // Calculate the number of blocks to skip for the file content
+        long file_size = strtol(header.size, NULL, 8);
+        long blocks_to_skip = (file_size + 511) / 512;
+
+        if (fseek(archive, blocks_to_skip * 512, SEEK_CUR) != 0) {
+            perror("Error seeking in archive");
+            fclose(archive);
+            return -1;
+        }
     }
 
+    if (ferror(archive)) {
+        perror("Error reading archive file");
+        fclose(archive);
+        return -1;
+    }
+
+    fclose(archive);
     return 0;
 }
 

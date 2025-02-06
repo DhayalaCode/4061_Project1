@@ -248,6 +248,24 @@ int append_files_to_archive(const char *archive_name, const file_list_t *files) 
         return -1;
     }
     // let Dhayalan continue with this
+    // Iterating through each file in the linked list
+    const node_t *current = files->head;
+    while (current != NULL) {
+        FILE *file_fp = fopen(current->name, "rb");
+        printf("%s\n" , current->name);
+
+        if (!file_fp) {
+            perror("Error: Failed to open member file");
+            if(fclose(archive_fpointer) != 0) { //checking if file actually closed
+                printf("Error closing file.");
+                return -1;
+            }
+            return -1;
+        }
+        current = current -> next;
+        fclose(file_fp);
+    }
+    fclose(archive_fpointer);
     return 0;
 }
 

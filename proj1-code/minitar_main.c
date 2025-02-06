@@ -70,7 +70,7 @@ int main(int argc, char **argv) {
             // Print the list to the terminal
             print_file_list(&files);
         }
-    } else if (strcmp(operation, "-u") == 0) {
+    } else if (strcmp(operation, "-u") == 0) { ///LOOK HERE FOR UPDATE FUNCTION.
         // Check if all files are present in the archive
         const node_t *current = files.head;
         while (current != NULL) {

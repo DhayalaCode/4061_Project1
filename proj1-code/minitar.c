@@ -354,6 +354,7 @@ int append_files_to_archive(const char *archive_name, const file_list_t *files) 
 }
 
 int get_archive_file_list(const char *archive_name, file_list_t *files) {
+    // Open the archive file for reading purposes
     FILE *archive = fopen(archive_name, "rb");
     if (!archive) {
         perror("Unable to open archive file");
@@ -363,8 +364,10 @@ int get_archive_file_list(const char *archive_name, file_list_t *files) {
     tar_header header;
     size_t num_read;
     int end_of_archive = 0;
-
+    // Continue the loop while we haven't hit the end of the archive and we continue reading in
+    // BLOCK_SIZE (512) bits
     while (!end_of_archive && (num_read = fread(&header, 1, BLOCK_SIZE, archive)) == BLOCK_SIZE) {
+        // If the block is empty check if the next block is empty
         if (is_empty_block((char *) &header)) {
             // Peek at the next header block
             long current_pos = ftell(archive);    // Save current position
@@ -394,7 +397,7 @@ int get_archive_file_list(const char *archive_name, file_list_t *files) {
         char truncated_name[MAX_NAME_LEN + 1];
         strncpy(truncated_name, header.name, MAX_NAME_LEN);
         truncated_name[MAX_NAME_LEN] = '\0';
-
+        // Add the file name to the file list
         if (file_list_add(files, truncated_name) != 0) {
             perror("Failed to add file to the list");
             fclose(archive);
@@ -404,7 +407,7 @@ int get_archive_file_list(const char *archive_name, file_list_t *files) {
         // Calculate the number of blocks to skip for the file content
         long file_size = strtol(header.size, NULL, 8);
         long blocks_to_skip = (file_size + 511) / 512;
-
+        // Move the cursor to th enext header block
         if (fseek(archive, blocks_to_skip * 512, SEEK_CUR) != 0) {
             perror("Error seeking in archive");
             fclose(archive);
@@ -426,7 +429,13 @@ int get_archive_file_list(const char *archive_name, file_list_t *files) {
 }
 
 int extract_files_from_archive(const char *archive_name) {
-    // TODO: Not yet implemented
+    // Open the file on read mode
+    FILE *archive = fopen(archive_name, "rb");
+    if (!archive) {
+        perror("Error opening archive file");
+        return -1;
+    }
+
     return 0;
 }
 

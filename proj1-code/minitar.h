@@ -103,4 +103,6 @@ int is_empty_block(const char *block);
  */
 void print_file_list(const file_list_t *list);
 
+int update_archive(const char *archive_name, const file_list_t *files);
+
 #endif    // _MINITAR_H

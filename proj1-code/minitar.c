@@ -520,8 +520,37 @@ int extract_files_from_archive(const char *archive_name) {
 }
 
 int is_file_in_archive(const char *archive_name, const char *file_name) {
-    // check if the file is in the archive. (HELPER FUNCTIOm)
-    return 0;
+   FILE *archive_fp = fopen(archive_name, "rb");
+   if (!archive_fp) return -1;
+
+   tar_header header;
+   while (fread(&header, 512, 1, archive_fp) == 1) {
+       if (strcmp(header.name, file_name) == 0) {
+           fclose(archive_fp);
+           return 1;
+       }
+
+       // Skip file contents blocks
+       long file_size;
+       sscanf(header.size, "%lo", &file_size);
+       long blocks = (file_size + 511) / 512; // Round up to nearest block
+       fseek(archive_fp, blocks * 512, SEEK_CUR);
+   }
+
+   fclose(archive_fp);
+   return 0;
+}
+
+int update_archive(const char *archive_name, const file_list_t *files) {
+   const node_t *current = files->head;
+   while (current != NULL) {
+       if (!is_file_in_archive(archive_name, current->name)) {
+           printf("Error: One or more of the specified files is not already present in archive");
+           return -1;
+       }
+       current = current->next;
+   }
+   return append_files_to_archive(archive_name, files);
 }
 
 // Helper function to print the contents of the file list

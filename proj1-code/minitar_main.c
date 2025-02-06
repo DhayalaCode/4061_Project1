@@ -79,10 +79,11 @@ int main(int argc, char **argv) {
             }
             current = current->next;
         }
-        // If all files are present, update the archive
-        result = append_files_to_archive(archive_name, &files);
-        if (result != 0) {
-            fprintf(stderr, "Error: Failed to update archive.\n");
+
+        // Call update function
+        if (update_archive(archive_name, &files) != 0) {
+            file_list_clear(&files);
+            return 1;
         }
     } else if (strcmp(operation, "-x") == 0) {
         result = extract_files_from_archive(archive_name);

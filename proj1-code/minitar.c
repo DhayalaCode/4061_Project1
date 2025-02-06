@@ -525,7 +525,7 @@ int is_file_in_archive(const char *archive_name, const char *file_name) {
 
    tar_header header;
    while (fread(&header, 512, 1, archive_fp) == 1) {
-       if (strcmp(header.name, file_name) == 0) {
+       if (strcmp(header.name, file_name) == 0) {//do the names match?
            fclose(archive_fp);
            return 1;
        }
@@ -537,7 +537,10 @@ int is_file_in_archive(const char *archive_name, const char *file_name) {
        fseek(archive_fp, blocks * 512, SEEK_CUR);
    }
 
-   fclose(archive_fp);
+   if (fclose(archive_fp) != 0) {
+        perror("Error closing file.");
+        return -1;
+    }
    return 0;
 }
 

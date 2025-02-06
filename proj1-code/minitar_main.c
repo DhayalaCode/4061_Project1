@@ -83,6 +83,7 @@ int main(int argc, char **argv) {
             file_list_clear(&files);
             return 1;
         }
+        
     } else if (strcmp(operation, "-x") == 0) {
         result = extract_files_from_archive(archive_name);
         if (result != 0) {

@@ -67,19 +67,17 @@ int main(int argc, char **argv) {
         const node_t *current = files.head;
         while (current != NULL) {
             int check = is_file_in_archive(archive_name, current->name);
-            if (check == -1) {
-                fprintf(stderr, "Error: Failed to check if file '%s' exists in archive.\n",
-                        current->name);
+            if (check == -1) { //error checking
+                fprintf(stderr, "Error: Failed to check if file '%s' exists in archive.\n", current->name);
                 file_list_clear(&files);
                 return 1;
             } else if (check == 0) {
-                fprintf(stderr, "Error: File '%s' is not present in archive.\n", current->name);
+                printf("Error: One or more of the specified files is not already present in archive");
                 file_list_clear(&files);
                 return 1;
             }
             current = current->next;
         }
-
         // Call update function
         if (update_archive(archive_name, &files) != 0) {
             file_list_clear(&files);

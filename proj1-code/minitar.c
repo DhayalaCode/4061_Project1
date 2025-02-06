@@ -242,7 +242,7 @@ int create_archive(const char *archive_name, const file_list_t *files) {
 }
 
 int append_files_to_archive(const char *archive_name, const file_list_t *files) {
-    if(remove_trailing_bytes(archive_name, 2 * 512) != 0) {
+    if (remove_trailing_bytes(archive_name, 2 * 512) != 0) {
         perror("Could not remove the 2 archive footers.");
         return -1;
     }
@@ -254,22 +254,19 @@ int append_files_to_archive(const char *archive_name, const file_list_t *files) 
     }
     // let Dhayalan continue with this
     // Iterating through each file in the linked list
-    if(fseek(archive_fpointer, 0, SEEK_END) != 0) {
+    if (fseek(archive_fpointer, 0, SEEK_END) != 0) {
         perror("Error seeking to end of current archive file.");
-        if(fclose(archive_fpointer) != 0) {
-                printf("Error closing file.");
-                return -1;
-            }
+        if (fclose(archive_fpointer) != 0) {
+            printf("Error closing file.");
+            return -1;
+        }
         return -1;
     }
 
     const node_t *current = files->head;
     while (current != NULL) {
         FILE *file_fp = fopen(current->name, "rb");
-<<<<<<< Updated upstream
-=======
         printf("%s\n", current->name);
->>>>>>> Stashed changes
 
         if (!file_fp) {
             perror("Error: Failed to open member file");
@@ -279,11 +276,51 @@ int append_files_to_archive(const char *archive_name, const file_list_t *files) 
             }
             return -1;
         }
-<<<<<<< Updated upstream
+        current = current->next;
+        fclose(file_fp);
+    }
+    fclose(archive_fpointer);
     //  next two lines create and write a tar header.
-        tar_header header;
-        if(fill_tar_header(&header,  current->name) != 0) {
-            perror("Error: Failed to create tar header");
+    tar_header header;
+    if (fill_tar_header(&header, current->name) != 0) {
+        perror("Error: Failed to create tar header");
+        if (fclose(file_fp) != 0) {
+            printf("Error closing file.");
+            return -1;
+        }
+        if (fclose(archive_fpointer) != 0) {
+            printf("Error closing file.");
+            return -1;
+        }
+        return -1;
+    }
+
+    if (fwrite(&header, 512, 1, archive_fpointer) != 1) {
+        perror("Error: Failed to write file contents to archive");
+        if (fclose(file_fp) != 0) {
+            printf("Error closing file.");
+            return -1;
+        }
+        if (fclose(archive_fpointer) != 0) {
+            printf("Error closing file.");
+            return -1;
+        }
+        return -1;
+    }
+    char buffer[512] = {0};
+    size_t bytes_read;
+    while ((bytes_read = fread(buffer, 1, sizeof(buffer), file_fp)) > 0) {
+        if (ferror(file_fp)) {
+            perror("Error reading from file");
+        }
+        // Pad the last block with zeros
+        if (bytes_read < sizeof(buffer)) {
+            memset(buffer + bytes_read, 0, sizeof(buffer) - bytes_read);
+        }
+
+        // Writing the block to the archive
+        if (fwrite(buffer, sizeof(buffer), 1, archive_fpointer) != 1) {
+            perror("Error: Failed to write file contents to archive");
             if (fclose(file_fp) != 0) {
                 printf("Error closing file.");
                 return -1;
@@ -294,72 +331,31 @@ int append_files_to_archive(const char *archive_name, const file_list_t *files) 
             }
             return -1;
         }
+    }
+    current = current->next;
+    if (fclose(file_fp) != 0) {
+        printf("Error closing file.");
+        return -1;
+    }
+}
 
-        if(fwrite(&header, 512, 1, archive_fpointer) != 1) {
-            perror("Error: Failed to write file contents to archive");
-                if (fclose(file_fp) != 0) {
-                    printf("Error closing file.");
-                    return -1;
-                }
-                if (fclose(archive_fpointer) != 0) {
-                    printf("Error closing file.");
-                    return -1;
-                }
-                return -1;
-        }
-        char buffer[512] = {0};
-        size_t bytes_read;
-        while ((bytes_read = fread(buffer, 1, sizeof(buffer), file_fp)) > 0) {
-            if (ferror(file_fp)) {
-                perror("Error reading from file");
-            }
-            // Pad the last block with zeros
-            if (bytes_read < sizeof(buffer)) {
-                memset(buffer + bytes_read, 0, sizeof(buffer) - bytes_read);
-            }
-
-            // Writing the block to the archive
-            if (fwrite(buffer, sizeof(buffer), 1, archive_fpointer) != 1) {
-                perror("Error: Failed to write file contents to archive");
-                if (fclose(file_fp) != 0) {
-                    printf("Error closing file.");
-                    return -1;
-                }
-                if (fclose(archive_fpointer) != 0) {
-                    printf("Error closing file.");
-                    return -1;
-                }
-                return -1;
-            }
-        }
-        current = current -> next;
-        if (fclose(file_fp) != 0) {
+char zeros[512] = {0};
+for (int i = 0; i < 2; i++) {
+    if (fwrite(zeros, sizeof(zeros), 1, archive_fpointer) != 1) {
+        perror("Error: Failed to write footer to archive");
+        if (fclose(archive_fpointer) != 0) {
             printf("Error closing file.");
             return -1;
         }
-    }
-
-    char zeros[512] = {0};
-    for (int i = 0; i < 2; i++) {
-        if (fwrite(zeros, sizeof(zeros), 1, archive_fpointer) != 1) {
-            perror("Error: Failed to write footer to archive");
-            if (fclose(archive_fpointer) != 0) {
-                printf("Error closing file.");
-                return -1;
-            }
-            return -1;
-        }
-    }
-
-    if (fclose(archive_fpointer) != 0) {
-        printf("Error closing file.");
         return -1;
-=======
-        current = current->next;
-        fclose(file_fp);
->>>>>>> Stashed changes
     }
-    return 0;
+}
+
+if (fclose(archive_fpointer) != 0) {
+    printf("Error closing file.");
+    return -1;
+}
+return 0;
 }
 
 int get_archive_file_list(const char *archive_name, file_list_t *files) {

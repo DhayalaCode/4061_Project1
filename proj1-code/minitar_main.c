@@ -4,14 +4,6 @@
 #include "file_list.h"
 #include "minitar.h"
 
-// Helper function to print the contents of the file list
-void print_file_list(const file_list_t *list) {
-    // Traverse the linked list starting at head and print each file name.
-    for (node_t *node = list->head; node != NULL; node = node->next) {
-        printf("%s\n", node->name);
-    }
-}
-
 // argc is the argument count and argv is the string of arguments
 // Usage: ./minitar <operation> -f <archive_name> <file_name_1> <file_name_2> ... <file_name_n>
 int main(int argc, char **argv) {

@@ -266,15 +266,20 @@ int append_files_to_archive(const char *archive_name, const file_list_t *files) 
     const node_t *current = files->head;
     while (current != NULL) {
         FILE *file_fp = fopen(current->name, "rb");
+<<<<<<< Updated upstream
+=======
+        printf("%s\n", current->name);
+>>>>>>> Stashed changes
 
         if (!file_fp) {
             perror("Error: Failed to open member file");
-            if(fclose(archive_fpointer) != 0) { //checking if file actually closed
+            if (fclose(archive_fpointer) != 0) {    // checking if file actually closed
                 printf("Error closing file.");
                 return -1;
             }
             return -1;
         }
+<<<<<<< Updated upstream
     //  next two lines create and write a tar header.
         tar_header header;
         if(fill_tar_header(&header,  current->name) != 0) {
@@ -349,6 +354,10 @@ int append_files_to_archive(const char *archive_name, const file_list_t *files) 
     if (fclose(archive_fpointer) != 0) {
         printf("Error closing file.");
         return -1;
+=======
+        current = current->next;
+        fclose(file_fp);
+>>>>>>> Stashed changes
     }
     return 0;
 }
@@ -429,17 +438,104 @@ int get_archive_file_list(const char *archive_name, file_list_t *files) {
 }
 
 int extract_files_from_archive(const char *archive_name) {
-    // Open the file on read mode
+    // Open the archive file in binary read mode.
     FILE *archive = fopen(archive_name, "rb");
     if (!archive) {
         perror("Error opening archive file");
         return -1;
     }
 
+    tar_header header;
+    int end_of_archive = 0;
+    size_t num_read;
+    // Buffer for constructing the full file name. Adjust the size if needed.
+    char full_file_name[256];
+
+    // Process each header block until we hit an empty block (end-of-archive)
+    while (!end_of_archive && (num_read = fread(&header, 1, BLOCK_SIZE, archive)) == BLOCK_SIZE) {
+        // If the block is empty, check if the next block is empty
+        if (is_empty_block((char *) &header)) {
+            // Peek at the next header block
+            long current_pos = ftell(archive);    // Save current position
+            tar_header next_header;
+            if (fread(&next_header, 1, BLOCK_SIZE, archive) != BLOCK_SIZE) {
+                // Couldn't read a full header; assume end of archive
+                break;
+            }
+
+            if (is_empty_block((char *) &next_header)) {
+                // Two consecutive empty blocks found: end of archive.
+                end_of_archive = 1;
+            } else {
+                // Not two consecutive empty blocks:
+                // Rewind back one header block so that next_header is processed in the next
+                // iteration.
+                if (fseek(archive, current_pos, SEEK_SET) != 0) {
+                    perror("Error seeking back in archive");
+                    fclose(archive);
+                    return -1;
+                }
+            }
+            continue;
+        }
+
+        // Construct the full file name using prefix (if any) and name.
+        if (header.prefix[0] != '\0') {
+            snprintf(full_file_name, sizeof(full_file_name), "%s/%s", header.prefix, header.name);
+        } else {
+            snprintf(full_file_name, sizeof(full_file_name), "%s", header.name);
+        }
+
+        // Convert file size from an octal string to a long integer.
+        long file_size = strtol(header.size, NULL, 8);
+
+        // Open the output file for writing in binary mode.
+        FILE *out = fopen(full_file_name, "wb");
+        if (!out) {
+            perror("Error creating output file");
+            fclose(archive);    // Ensure we close the archive as well
+            return -1;
+        }
+
+        // Determine the number of blocks that the file occupies (including padding)
+        int blocks = (file_size + BLOCK_SIZE - 1) / BLOCK_SIZE;
+        char buffer[BLOCK_SIZE];
+        long remaining = file_size;    // The actual number of bytes to write
+
+        for (int i = 0; i < blocks; i++) {
+            size_t bytes_read = fread(buffer, 1, BLOCK_SIZE, archive);
+            if (bytes_read != BLOCK_SIZE) {
+                perror("Error reading file content from archive");
+                fclose(out);
+                fclose(archive);
+                return -1;
+            }
+            // For the last block, only write the remaining bytes of the file.
+            size_t to_write = (remaining < BLOCK_SIZE) ? remaining : BLOCK_SIZE;
+            if (fwrite(buffer, 1, to_write, out) != to_write) {
+                perror("Error writing to output file");
+                fclose(out);
+                fclose(archive);
+                return -1;
+            }
+            remaining -= to_write;
+        }
+        fclose(out);
+    }
+
+    fclose(archive);
     return 0;
 }
 
 int is_file_in_archive(const char *archive_name, const char *file_name) {
     // check if the file is in the archive. (HELPER FUNCTIOm)
     return 0;
+}
+
+// Helper function to print the contents of the file list
+void print_file_list(const file_list_t *list) {
+    // Traverse the linked list starting at head and print each file name.
+    for (node_t *node = list->head; node != NULL; node = node->next) {
+        printf("%s\n", node->name);
+    }
 }

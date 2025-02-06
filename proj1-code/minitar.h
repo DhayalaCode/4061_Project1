@@ -99,4 +99,8 @@ int is_file_in_archive(const char *archive_name, const char *file_name);
  */
 int is_empty_block(const char *block);
 
+/*
+ */
+void print_file_list(const file_list_t *list);
+
 #endif    // _MINITAR_H

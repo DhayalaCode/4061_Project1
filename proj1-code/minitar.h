@@ -79,30 +79,51 @@ int get_archive_file_list(const char *archive_name, file_list_t *files);
  */
 int extract_files_from_archive(const char *archive_name);
 
-// NEED TO CREATE COMMENT
+/*
+ * Determine if a given file is present within an archive.
+ *
+ * Parameters:
+ *   archive_name - Path to the tar archive file.
+ *   file_name    - Name of the file to look for within the archive.
+ *
+ * Returns:
+ *   1  if the file is found in the archive.
+ *   0  if the file is not present.
+ *  -1  if an error occurred while checking the archive.
+ */
 int is_file_in_archive(const char *archive_name, const char *file_name);
 
-/**
- * is_empty_block - Determine if a memory block is completely empty.
- * @block: Pointer to the memory block to be checked. The block is assumed to
- *         be of size BLOCK_SIZE bytes.
- *
- * Description:
- *   This function iterates over a memory block of size BLOCK_SIZE bytes and
- *   checks whether every byte in the block is zero ('\0'). This is useful,
- *   for example, when verifying whether a 512-byte tar header block is empty,
- *   which indicates the end of the archive.
- *
- * Return:
- *   1 if the block is entirely empty (all bytes are zero),
- *   0 if at least one byte in the block is non-zero.
- */
-int is_empty_block(const char *block);
-
 /*
+ * Print the list of file names contained in a file_list_t to the standard output.
+ *
+ * Parameters:
+ *   list - Pointer to a file_list_t structure containing the linked list of file nodes.
+ *
+ * Behavior:
+ *   This function iterates through the linked list stored in 'list' and prints each file name,
+ *   one per line, to standard output. It is useful for debugging and for implementing the 'list'
+ *   operation of the tar utility.
  */
 void print_file_list(const file_list_t *list);
 
+/*
+ * Update the specified archive with new versions of files.
+ *
+ * Parameters:
+ *   archive_name - Path to the tar archive file to be updated.
+ *   files        - Pointer to a file_list_t structure containing the names of files to update.
+ *
+ * Behavior:
+ *   For each file in the provided 'files' list, the function first verifies that the file is
+ *   already present in the archive (using is_file_in_archive). If any file is not found, the
+ *   update is aborted and the function returns -1. Otherwise, the function appends the new versions
+ *   of the files to the archive. When extracting the archive, the most recently added copy of any
+ *   file is considered its current version.
+ *
+ * Returns:
+ *   0  on success.
+ *  -1  if an error occurred during the update operation.
+ */
 int update_archive(const char *archive_name, const file_list_t *files);
 
 #endif    // _MINITAR_H

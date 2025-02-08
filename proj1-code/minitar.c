@@ -565,6 +565,12 @@ int extract_files_from_archive(const char *archive_name) {
         if (is_empty_block((char *) &header)) {
             /* Peek at the next block to check for the archive end marker */
             long current_pos = ftell(archive);
+            if (current_pos == -1L) {
+                perror("Error: ftell() failed");
+                fclose(archive);
+                return -1;
+            }
+
             tar_header next_header;
             if (fread(&next_header, 1, BLOCK_SIZE, archive) != BLOCK_SIZE) {
                 break;
@@ -674,81 +680,4 @@ int extract_files_from_archive(const char *archive_name) {
         return -1;
     }
     return 0;
-}
-
-/*
- * is_file_in_archive - Check if a specified file is present in the tar archive.
- * @archive_name: Name of the tar archive file.
- * @file_name: Name of the file to search for within the archive.
- *
- * This function opens the archive and iterates through each header block. If the file name in
- * a header matches the provided file name, the function returns 1. If no match is found, it
- * returns 0. In case of an error, -1 is returned.
- */
-int is_file_in_archive(const char *archive_name, const char *file_name) {
-    FILE *archive_fp = fopen(archive_name, "rb");
-    if (!archive_fp)
-        return -1;
-
-    tar_header header;
-    /* Iterate over each header block in the archive */
-    while (fread(&header, BLOCK_SIZE, 1, archive_fp) == 1) {
-        /* Compare the file name in the header with the target file name */
-        if (strcmp(header.name, file_name) == 0) {    // If names match, file is present
-            if (fclose(archive_fp) != 0) {
-                printf("Error closing file.");
-                return -1;
-            }
-            return 1;
-        }
-        /* Skip the file's content blocks based on its size */
-        long file_size;
-        sscanf(header.size, "%lo", &file_size);
-        long blocks = (file_size + 511) / 512;
-        fseek(archive_fp, blocks * BLOCK_SIZE, SEEK_CUR);
-    }
-
-    if (fclose(archive_fp) != 0) {
-        perror("Error closing file.");
-        return -1;
-    }
-    return 0;
-}
-
-/*
- * update_archive - Update an existing tar archive by appending new versions of files.
- * @archive_name: Name of the tar archive to update.
- * @files: Pointer to a file_list_t containing the files to update.
- *
- * This function first checks that every file in the provided list already exists in the archive
- * (using is_file_in_archive()). If any file is missing, it prints an error and aborts.
- * Otherwise, it calls append_files_to_archive() to append the new versions of the files.
- *
- * Returns 0 on success or -1 if an error occurs.
- */
-int update_archive(const char *archive_name, const file_list_t *files) {
-    const node_t *current = files->head;
-    /* Verify that each file is already present in the archive */
-    while (current != NULL) {
-        if (!is_file_in_archive(archive_name, current->name)) {
-            printf("Error: One or more of the specified files is not already present in archive");
-            return -1;
-        }
-        current = current->next;
-    }
-    /* Append new versions of the files to the archive */
-    return append_files_to_archive(archive_name, files);
-}
-
-/*
- * print_file_list - Print all file names contained in a file_list_t.
- * @list: Pointer to the file_list_t structure.
- *
- * This function iterates through the linked list of file nodes and prints each file name
- * on a separate line. Useful for debugging and for the 'list' operation of the tar utility.
- */
-void print_file_list(const file_list_t *list) {
-    for (node_t *node = list->head; node != NULL; node = node->next) {
-        printf("%s\n", node->name);
-    }
 }
